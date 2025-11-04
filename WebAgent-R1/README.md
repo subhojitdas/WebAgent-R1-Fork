@@ -45,7 +45,7 @@ pip install lxml dashscope anthropic openai==1.64.0
 #### 3. Training Setup
 ```bash
 cd Train
-conda create -f environment.yml
+conda env create -f environment.yml
 ```
 
 ## 📖 Usage
