@@ -15,7 +15,7 @@ from transformers import (
 from transformers.utils import is_peft_available
 from trl import GRPOTrainer, GRPOConfig
 from trl.data_utils import apply_chat_template, maybe_apply_chat_template
-from trl.import_utils import is_rich_available
+# from trl.import_utils import is_rich_available
 from trl.trainer.utils import pad
 
 from verifiers.envs.environment import Environment
@@ -290,24 +290,24 @@ class GRPOEnvTrainer(GRPOTrainer):
             rewards_to_log = rewards.tolist()
 
             if self.accelerator.is_main_process:
-                if is_rich_available():
-                    # idx = 0
-
-                    # find the max reward index
-                    idx = rewards.argmax().item()
-
-                    # find the index with shortest completion_message, completion_message is a list of list
-                    # idx = min(
-                    #     range(len(completion_messages)),
-                    #     key=lambda i: len(completion_messages[i])
-                    # )
-
-                    print_prompt_completions_sample(
-                        [str(prompts_to_log[idx][-1]["content"])],
-                        [completions_to_log[idx]],
-                        [rewards_to_log[idx]],
-                        self.state.global_step,
-                    )
+                # if is_rich_available():
+                #     # idx = 0
+                #
+                #     # find the max reward index
+                #     idx = rewards.argmax().item()
+                #
+                #     # find the index with shortest completion_message, completion_message is a list of list
+                #     # idx = min(
+                #     #     range(len(completion_messages)),
+                #     #     key=lambda i: len(completion_messages[i])
+                #     # )
+                #
+                #     print_prompt_completions_sample(
+                #         [str(prompts_to_log[idx][-1]["content"])],
+                #         [completions_to_log[idx]],
+                #         [rewards_to_log[idx]],
+                #         self.state.global_step,
+                #     )
                 if self.args.report_to and "wandb" in self.args.report_to and wandb.run is not None: # type: ignore
                     import pandas as pd
 

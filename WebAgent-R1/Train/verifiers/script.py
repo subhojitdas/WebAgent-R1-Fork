@@ -26,7 +26,7 @@ rubric = vf_env.get_rubric()
 
 training_args = get_default_grpo_config(
     run_name=f"{TASK}_GRPO/Standard/" + model_name.split("/")[-1].lower(),
-    num_gpus=5
+    num_gpus=3
 )
 
 trainer = GRPOEnvTrainer(

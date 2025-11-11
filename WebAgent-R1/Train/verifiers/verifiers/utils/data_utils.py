@@ -54,7 +54,7 @@ def preprocess_dataset(dataset_name: str = "gsm8k",
     if dataset_name == "webarena-lite":
 
         # dataset = load_dataset("weizhepei/WebArena-Lite", split=split) # not supported now
-        with open(f"/workspace/verifiers/verifiers/envs/WebArena/webarena-lite-data/normalized_{split}.json", "r") as f:
+        with open(f"./verifiers/envs/WebArena/webarena-lite-data/normalized_{split}.json", "r") as f:
             data = json.load(f)
         dataset = Dataset.from_list(data)
 

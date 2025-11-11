@@ -34,14 +34,16 @@ def get_default_grpo_config(run_name: str,
         eval_steps=0.125,
         eval_on_start = False, # True
         use_vllm=True,
-        vllm_device=f"cuda:{num_gpus-1}",
+        # vllm_device=f"cuda:{num_gpus-1}",
         vllm_gpu_memory_utilization=0.7 if num_gpus > 1 else 0.3,
         logging_steps=1,
         log_on_each_node=False,
         log_completions=True,
         report_to="wandb",
         reward_weights=reward_weights,
-        temperature=1.0
+        temperature=1.0,
+        vllm_server_base_url="http://localhost:8000",
+        vllm_mode="colocate",
     )
 
 

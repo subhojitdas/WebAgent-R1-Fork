@@ -205,7 +205,7 @@ class WebArenaEnv(MultiStepEnv):
             save_trace_enabled=args.save_trace_enabled,
             sleep_after_execution=args.sleep_after_execution,
             captioning_fn=None,
-            n_contexts=self.n_contexts,
+            # n_contexts=self.n_contexts,
         )
 
         return env
