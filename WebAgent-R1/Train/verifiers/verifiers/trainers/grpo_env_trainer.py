@@ -1,5 +1,5 @@
 from typing import Callable, Optional, Union, Any, List
-
+import os
 from accelerate.utils import broadcast_object_list, gather, gather_object
 from datasets import Dataset, IterableDataset
 import torch
@@ -12,6 +12,7 @@ from transformers import (
     is_wandb_available,
     Trainer,
 )
+from copy import deepcopy
 from transformers.utils import is_peft_available
 from trl import GRPOTrainer, GRPOConfig
 from trl.data_utils import apply_chat_template, maybe_apply_chat_template
@@ -50,6 +51,17 @@ class GRPOEnvTrainer(GRPOTrainer):
             raise ValueError("vLLM must be enabled for GRPOEnvTrainer")
         if not (callable(reward_funcs) or (isinstance(reward_funcs, list) and all(callable(f) for f in reward_funcs))): 
             raise ValueError("reward_funcs must be a function or a list of functions. Use vLLM to host neural reward models.")
+        main_only_args = deepcopy(args) if args is not None else GRPOConfig()
+        os.environ.setdefault("VLLM_GROUP_PORT", "29519")
+        local_args = deepcopy(args)
+        self.is_main = (not torch.distributed.is_initialized()) or (torch.distributed.get_rank() == 0)
+        if not self.is_main:
+            local_args.use_vllm = False
+            local_args.vllm_mode = None
+            local_args.vllm_server_base_url = None
+        self.main_wants_vllm = bool(local_args.use_vllm)
+        local_args.use_vllm = False
+
         super().__init__(
             model=model,
             reward_funcs=reward_funcs,
@@ -62,7 +74,28 @@ class GRPOEnvTrainer(GRPOTrainer):
             peft_config=peft_config,
             **kwargs,
         )
+
+        if self.is_main and self.main_wants_vllm:
+            from trl.extras.vllm_client import VLLMClient
+            port = int(os.getenv("VLLM_GROUP_PORT", "29519"))
+            self.vllm_client = VLLMClient(base_url=args.vllm_server_base_url)
+            self.vllm_client.group_port = port
+            print(f"[MAIN] init_communicator on port {self.vllm_client.group_port}")
+            self.vllm_client.init_communicator(device=torch.cuda.current_device())
+            self.use_vllm = True
+            self.llm = self.vllm_client
+
+        self.accelerator.wait_for_everyone()
+
         self.env = env
+        if self.accelerator.is_main_process:
+            # this triggers the /get_world_size + /init_communicator path once
+            # by forcing an initial tiny update (no-op weights push)
+            with torch.no_grad():
+                for name, param in self.model.named_parameters():
+                    self.vllm_client.update_named_param(name, param.data)
+                    break  # a single param is enough to init
+        self.accelerator.wait_for_everyone()
 
     def _generate_and_score_completions(
          self, inputs: dict[str, Union[torch.Tensor, Any]]   
@@ -76,7 +109,13 @@ class GRPOEnvTrainer(GRPOTrainer):
         # print(f'\n>>> prompts_text at device {device} (length: {len(prompts_text)}): {json.dumps(prompts_text, indent=2)}')
 
         prompt_inputs = self.processing_class(
-            prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False # type: ignore
+            prompts_text,
+            return_tensors="pt",
+            padding=True,
+            padding_side="left",
+            add_special_tokens=False, # type: ignore
+            truncation=True,
+            max_length=self.max_prompt_length,
         ) # type: ignore
     
         # prompts_text = gather_object(prompts_text)
@@ -89,9 +128,14 @@ class GRPOEnvTrainer(GRPOTrainer):
         #     prompt_ids = prompt_ids[:, -self.max_prompt_length :]
         #     prompt_mask = prompt_mask[:, -self.max_prompt_length :]
 
+        if self.is_main and self.main_wants_vllm and not getattr(self, "_vllm_comm_inited", False):
+            self.vllm_client.init_communicator(device=torch.cuda.current_device())
+            self._vllm_comm_inited = True
         if self.state.global_step != self._last_loaded_step:
-            self._move_model_to_vllm()
+            if self.accelerator.is_main_process:
+                self._move_model_to_vllm()
             self._last_loaded_step = self.state.global_step
+            self.accelerator.wait_for_everyone()
 
         # Gather the original prompts in message dict form, not the text form
         all_prompts = gather_object(prompts)

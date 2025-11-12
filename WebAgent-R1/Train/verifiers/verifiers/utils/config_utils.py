@@ -20,11 +20,11 @@ def get_default_grpo_config(run_name: str,
         max_grad_norm=0.01,
         num_iterations=1,
         beta=0.001, # 0.001 in verl; 0.04 in open-r1
-        max_prompt_length=16382, #8192 * 2 = 16382
-        max_completion_length=1024,
+        max_prompt_length=4096, #8192 * 2 = 16382
+        max_completion_length=512,
         per_device_train_batch_size=1, # 16
         per_device_eval_batch_size=1, # 32
-        num_generations=num_gpus-1,
+        num_generations=4,
         gradient_accumulation_steps=16, #  int(16 / num_gpus) total_batch_size = per_device_train_batch_size * gradient_accumulation_steps
         gradient_checkpointing=True,
         save_strategy="steps",
@@ -35,7 +35,7 @@ def get_default_grpo_config(run_name: str,
         eval_on_start = False, # True
         use_vllm=True,
         # vllm_device=f"cuda:{num_gpus-1}",
-        vllm_gpu_memory_utilization=0.7 if num_gpus > 1 else 0.3,
+        vllm_gpu_memory_utilization=0.9,
         logging_steps=1,
         log_on_each_node=False,
         log_completions=True,
@@ -43,7 +43,7 @@ def get_default_grpo_config(run_name: str,
         reward_weights=reward_weights,
         temperature=1.0,
         vllm_server_base_url="http://localhost:8000",
-        vllm_mode="colocate",
+        vllm_mode="server",
     )
 
 
