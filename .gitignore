@@ -185,3 +185,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .idea
+WebAgent-R1/Train/verifiers/debug_info

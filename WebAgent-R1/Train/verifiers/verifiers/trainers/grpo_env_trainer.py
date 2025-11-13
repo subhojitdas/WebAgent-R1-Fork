@@ -1,5 +1,5 @@
 from typing import Callable, Optional, Union, Any, List
-import os
+
 from accelerate.utils import broadcast_object_list, gather, gather_object
 from datasets import Dataset, IterableDataset
 import torch
@@ -12,11 +12,16 @@ from transformers import (
     is_wandb_available,
     Trainer,
 )
-from copy import deepcopy
 from transformers.utils import is_peft_available
 from trl import GRPOTrainer, GRPOConfig
 from trl.data_utils import apply_chat_template, maybe_apply_chat_template
-# from trl.import_utils import is_rich_available
+from vllm import SamplingParams
+
+try:
+    from trl.import_utils import is_rich_available
+except ImportError:
+    def is_rich_available():
+        return False
 from trl.trainer.utils import pad
 
 from verifiers.envs.environment import Environment
@@ -49,19 +54,8 @@ class GRPOEnvTrainer(GRPOTrainer):
     ):
         if not args.use_vllm: # type: ignore
             raise ValueError("vLLM must be enabled for GRPOEnvTrainer")
-        if not (callable(reward_funcs) or (isinstance(reward_funcs, list) and all(callable(f) for f in reward_funcs))): 
+        if not (callable(reward_funcs) or (isinstance(reward_funcs, list) and all(callable(f) for f in reward_funcs))):
             raise ValueError("reward_funcs must be a function or a list of functions. Use vLLM to host neural reward models.")
-        main_only_args = deepcopy(args) if args is not None else GRPOConfig()
-        os.environ.setdefault("VLLM_GROUP_PORT", "29519")
-        local_args = deepcopy(args)
-        self.is_main = (not torch.distributed.is_initialized()) or (torch.distributed.get_rank() == 0)
-        if not self.is_main:
-            local_args.use_vllm = False
-            local_args.vllm_mode = None
-            local_args.vllm_server_base_url = None
-        self.main_wants_vllm = bool(local_args.use_vllm)
-        local_args.use_vllm = False
-
         super().__init__(
             model=model,
             reward_funcs=reward_funcs,
@@ -74,50 +68,25 @@ class GRPOEnvTrainer(GRPOTrainer):
             peft_config=peft_config,
             **kwargs,
         )
-
-        if self.is_main and self.main_wants_vllm:
-            from trl.extras.vllm_client import VLLMClient
-            port = int(os.getenv("VLLM_GROUP_PORT", "29519"))
-            self.vllm_client = VLLMClient(base_url=args.vllm_server_base_url)
-            self.vllm_client.group_port = port
-            print(f"[MAIN] init_communicator on port {self.vllm_client.group_port}")
-            self.vllm_client.init_communicator(device=torch.cuda.current_device())
-            self.use_vllm = True
-            self.llm = self.vllm_client
-
-        self.accelerator.wait_for_everyone()
-
         self.env = env
-        if self.accelerator.is_main_process:
-            # this triggers the /get_world_size + /init_communicator path once
-            # by forcing an initial tiny update (no-op weights push)
-            with torch.no_grad():
-                for name, param in self.model.named_parameters():
-                    self.vllm_client.update_named_param(name, param.data)
-                    break  # a single param is enough to init
-        self.accelerator.wait_for_everyone()
+        self.sampling_params = SamplingParams(temperature=0.1, max_tokens=512)
 
     def _generate_and_score_completions(
-         self, inputs: dict[str, Union[torch.Tensor, Any]]   
+            self, inputs: dict[str, Union[torch.Tensor, Any]]
     ) -> dict[str, Union[torch.Tensor, Any]]:
         device = self.accelerator.device
         # prompts = [x["prompt"] for x in inputs] # type: ignore
         prompts = inputs # for WebArena
 
         prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs] # type: ignore
-        
+
         # print(f'\n>>> prompts_text at device {device} (length: {len(prompts_text)}): {json.dumps(prompts_text, indent=2)}')
 
         prompt_inputs = self.processing_class(
-            prompts_text,
-            return_tensors="pt",
-            padding=True,
-            padding_side="left",
-            add_special_tokens=False, # type: ignore
-            truncation=True,
-            max_length=self.max_prompt_length,
+            prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False, # type: ignore
+            truncation=True, max_length=self.max_prompt_length,
         ) # type: ignore
-    
+
         # prompts_text = gather_object(prompts_text)
         # print(f'\n>>> (after gather) prompts_text at device {device} (length: {len(prompts_text)}): {json.dumps(prompts_text, indent=2)}')
 
@@ -128,26 +97,21 @@ class GRPOEnvTrainer(GRPOTrainer):
         #     prompt_ids = prompt_ids[:, -self.max_prompt_length :]
         #     prompt_mask = prompt_mask[:, -self.max_prompt_length :]
 
-        if self.is_main and self.main_wants_vllm and not getattr(self, "_vllm_comm_inited", False):
-            self.vllm_client.init_communicator(device=torch.cuda.current_device())
-            self._vllm_comm_inited = True
         if self.state.global_step != self._last_loaded_step:
-            if self.accelerator.is_main_process:
-                self._move_model_to_vllm()
+            self._move_model_to_vllm()
             self._last_loaded_step = self.state.global_step
-            self.accelerator.wait_for_everyone()
 
         # Gather the original prompts in message dict form, not the text form
         all_prompts = gather_object(prompts)
         all_inputs = gather_object(inputs)
         if self.accelerator.is_main_process:
             # print(f'\n>>> type(all_prompts) at device {device}: {type(all_prompts)}') # list
-            # print(f'length(all_prompts) at device {device}: {len(all_prompts)}') 
+            # print(f'length(all_prompts) at device {device}: {len(all_prompts)}')
             # print(f'type(all_prompts[0]) at device {device}: {type(all_prompts[0])}') # list
             # print(f'length(all_prompts[0]) at device {device}: {len(all_prompts[0])}\n\n') # a 8-turn conversation [{'role': 'system', 'content': 'system prompt'}, {'role': 'user', 'content': 'user prompt'}, {'role': 'assistant', 'content': 'assistant response'}, ...]
             # print(f'all_prompts[0] at device {device}: {all_prompts[0]}') # a multi-turn conversation
 
-            # print(f'\n>>> type(inputs) at device {device}: {type(all_inputs)}')  
+            # print(f'\n>>> type(inputs) at device {device}: {type(all_inputs)}')
             # print(f'length(inputs) at device {device}: {len(all_inputs)}') # length qual to n_genetaions, each is a task_config
 
             env_result = self.env.generate(
@@ -182,7 +146,7 @@ class GRPOEnvTrainer(GRPOTrainer):
             completion_mask = [None] * len(all_prompts)
             completion_reward = [None] * len(all_prompts)
             completion_steps = [None] * len(all_prompts)
-        
+
             # print(f'\n>>> completion_ids len (is_main_process: {self.accelerator.is_main_process}): {len(completion_ids)}, shape: {[i.shape if i is not None else None for i in completion_ids]}')
             # print(f'\n>>> completion_messages len (is_main_process: {self.accelerator.is_main_process}): {len(completion_messages)}, shape: {[i.shape if i is not None else None for i in completion_messages]}')
             # print(f'\n>>> completion_mask len (is_main_process: {self.accelerator.is_main_process}): {len(completion_mask)}, shape: {[i.shape if i is not None else None for i in completion_mask]}')
@@ -202,7 +166,7 @@ class GRPOEnvTrainer(GRPOTrainer):
         process_slice = slice(
             self.accelerator.process_index * len(prompts),
             (self.accelerator.process_index + 1) * len(prompts),
-        )
+            )
 
         completion_ids = completion_ids[process_slice]
         completion_messages = completion_messages[process_slice]
@@ -254,13 +218,13 @@ class GRPOEnvTrainer(GRPOTrainer):
                     ref_per_token_logps = self._get_per_token_logps(
                         self.model, prompt_completion_ids, attention_mask, logits_to_keep
                     )
-        
+
         # print(f'>>> Finished computing rewards')
 
         # use message dicts for reward function inputs
         completions = completion_messages
         llm_as_judge_reward = completion_reward
-        
+
         rewards_per_func = torch.zeros(len(prompts), len(self.reward_funcs), device=device)
 
         # print(f'\n>>> init rewards_per_func (is_main_process: {self.accelerator.is_main_process} at device {device}): shape {rewards_per_func.shape}\n{rewards_per_func}')
@@ -295,7 +259,7 @@ class GRPOEnvTrainer(GRPOTrainer):
         process_slice = slice(
             self.accelerator.process_index * len(prompts),
             (self.accelerator.process_index + 1) * len(prompts),
-        )
+            )
         advantages = advantages[process_slice]
 
         # Log the metrics
@@ -334,24 +298,24 @@ class GRPOEnvTrainer(GRPOTrainer):
             rewards_to_log = rewards.tolist()
 
             if self.accelerator.is_main_process:
-                # if is_rich_available():
-                #     # idx = 0
-                #
-                #     # find the max reward index
-                #     idx = rewards.argmax().item()
-                #
-                #     # find the index with shortest completion_message, completion_message is a list of list
-                #     # idx = min(
-                #     #     range(len(completion_messages)),
-                #     #     key=lambda i: len(completion_messages[i])
-                #     # )
-                #
-                #     print_prompt_completions_sample(
-                #         [str(prompts_to_log[idx][-1]["content"])],
-                #         [completions_to_log[idx]],
-                #         [rewards_to_log[idx]],
-                #         self.state.global_step,
-                #     )
+                if is_rich_available():
+                    # idx = 0
+
+                    # find the max reward index
+                    idx = rewards.argmax().item()
+
+                    # find the index with shortest completion_message, completion_message is a list of list
+                    # idx = min(
+                    #     range(len(completion_messages)),
+                    #     key=lambda i: len(completion_messages[i])
+                    # )
+
+                    print_prompt_completions_sample(
+                        [str(prompts_to_log[idx][-1]["content"])],
+                        [completions_to_log[idx]],
+                        [rewards_to_log[idx]],
+                        self.state.global_step,
+                    )
                 if self.args.report_to and "wandb" in self.args.report_to and wandb.run is not None: # type: ignore
                     import pandas as pd
 

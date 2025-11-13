@@ -14,7 +14,6 @@ from verifiers.envs.environment import LLM, SamplingParams
 from verifiers.envs.multistep_env import MultiStepEnv
 from verifiers.parsers import XMLParser
 from verifiers.prompts.system_prompts import WEBARENA_SYS_PROMPT
-from verifiers.rubrics.webarena_rubric import WebArenaRubric
 from verifiers.utils import preprocess_dataset
 
 from verifiers.envs.WebArena.test_webarena import (
@@ -100,15 +99,17 @@ def apply_webrl_format(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     formatted_msg = ''
     for idx, msg in enumerate(messages):
         if idx == 0:
-            assert msg['role'] == 'user'
-            intent, obs = msg['content'].split('Round 0')
-            intent, obs = intent.strip(), obs.strip()
-            formatted_msg += f'Task Instruction: {intent}\n\nRound 0\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
-            if obs != '** Simplified html **':
-                assert len(messages) == 1
-                formatted_msg += obs + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
-            else:
-                formatted_msg += intent + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
+            print("========MESSAGE: ", msg)
+            assert msg['role'] == 'system'
+            # intent, obs = msg['content'].split('Round 0')
+            # intent, obs = intent.strip(), obs.strip()
+            # formatted_msg += f'Task Instruction: {intent}\n\nRound 0\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
+            # if obs != '** Simplified html **':
+            #     assert len(messages) == 1
+            #     formatted_msg += obs + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
+            # else:
+            #     formatted_msg += intent + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
+            formatted_msg = msg['content']
         elif msg['role'] == 'assistant':
             formatted_msg += msg["content"].strip() + f'\n\nRound {int(idx/2)+1}\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
         elif msg['role'] == 'user':

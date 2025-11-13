@@ -1,4 +1,7 @@
 # script.py
+import os
+from accelerate import Accelerator
+
 import verifiers as vf
 from verifiers.tools import calculator
 from verifiers.prompts import CALCULATOR_FEW_SHOT
@@ -6,6 +9,7 @@ from verifiers.trainers import GRPOEnvTrainer
 from verifiers.envs import ToolEnv
 from verifiers.utils import get_default_grpo_config
 from verifiers.envs.webarena_env import WebArenaEnv
+
 
 model_name = "Qwen/Qwen2.5-3B-Instruct"
 
