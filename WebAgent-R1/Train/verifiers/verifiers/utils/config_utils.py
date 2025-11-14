@@ -21,7 +21,7 @@ def get_default_grpo_config(run_name: str,
         max_grad_norm=0.01,
         num_iterations=1,
         beta=0.001, # 0.001 in verl; 0.04 in open-r1
-        max_prompt_length=2048, #8192 * 2 = 16382
+        max_prompt_length=20480, #8192 * 2 = 16382
         max_completion_length=512,
         per_device_train_batch_size=1, # 16
         per_device_eval_batch_size=1, # 32

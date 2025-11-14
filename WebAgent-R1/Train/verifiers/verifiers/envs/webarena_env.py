@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datasets import Dataset
 from trl.trainer.grpo_trainer import RewardFunc
 
+from verifiers.envs.WebArena.auto_login_direct import auto_login_direct
 from verifiers.envs.environment import LLM, SamplingParams
 from verifiers.envs.multistep_env import MultiStepEnv
 from verifiers.parsers import XMLParser
@@ -393,12 +394,12 @@ class WebArenaEnv(MultiStepEnv):
                 parsed_action_str = self.map_url_to_local(response)
                 action = create_webrl_id_based_action(parsed_action_str)
                 action["raw_prediction"] = response
-                obs, _, _, _, info = self.env.step(action, context_id)
+                obs, _, _, _, info = self.env.step(action)
                 next_msg = {"role": "user", "content": ""}
                 if info["fail_error"] != "":
                     next_msg["content"] += f"Error: invalid action {parsed_action_str}.\nFail error: {info['fail_error']}"
         except Exception as e:
-            # print(f'Error: {str(e)}')
+            print(f'Error: {str(e)}')
             next_msg = {"role": "user", "content": f"Error: invalid action {parsed_action_str}\nError: {e}"}
             # next_msg = {"role": "user", "content": ""}
             obs = None
@@ -922,13 +923,16 @@ class WebArenaEnv(MultiStepEnv):
                     [
                         "python",
                         # "auto_login.py",
-                        "/workspace/verifiers/verifiers/envs/WebArena/auto_login.py",
+                        "./verifiers/envs/WebArena/auto_login.py",
                         "--auth_folder",
                         temp_dir,
                         "--site_list",
                         *comb,
                     ]
                 )
+
+                # page = auto_login_direct(*comb, temp_dir)
+
                 state["storage_state"] = f"{temp_dir}/{cookie_file_name}"
 
             task["storage_state"] = state["storage_state"]

@@ -1,6 +1,7 @@
 import random
 import json
 from typing import List, Dict
+import re
 
 from datasets import Dataset, load_dataset # type: ignore
 
@@ -46,6 +47,22 @@ def format_prompt(prompt: str,
     messages.append({"role": "user", "content": prompt})
     return messages
 
+def remap_start_url(site, url):
+    base_host = "172.31.30.90"
+    site_port_map = {
+        "gitlab": "8023",
+        "shopping_admin": "7780",
+        "shopping": "7770",
+        "wikipedia": "8888",
+        "map": "3000",
+        "reddit": "9999",
+    }
+    site_port = site_port_map[site]
+    domain = f"http://{base_host}:{site_port}"
+    updated = re.sub(r"http://localhost:\d{4}", domain, url)
+    return updated
+
+
 def preprocess_dataset(dataset_name: str = "gsm8k", 
                        split: str = "train",
                        system_prompt: str | None = None,
@@ -60,7 +77,8 @@ def preprocess_dataset(dataset_name: str = "gsm8k",
 
         dataset = dataset.map(lambda x: {
             "prompt": format_prompt(x["intent"], system_prompt, few_shot, fewshot_prob),
-            "answer": {k:v for k,v in x["eval"]["reference_answers"].items() if v is not None}
+            "answer": {k:v for k,v in x["eval"]["reference_answers"].items() if v is not None},
+            "start_url": remap_start_url(x["sites"][0], x["start_url"]),
         })
 
         return dataset

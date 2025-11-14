@@ -1904,6 +1904,7 @@ def create_id_based_action(action_str: str) -> Action:
 def create_webrl_id_based_action(action_str: str) -> Action:
     """Main function to return individual webrl id based action"""
     import ast
+    print("Inside create_webrl_id_based_action")
     def remove_comments(code):
         # 按行分割代码
         for key in ['exit(','do(','go_backward(']:
@@ -1919,8 +1920,13 @@ def create_webrl_id_based_action(action_str: str) -> Action:
                 return '\n'.join(lines[i:])
         return ''
 
+    def remove_last_answer(expression):
+        clean = expression.replace("</answer>", "")
+        return clean
+
     def parse_function_call(expression):
         expression = remove_comments(expression)
+        expression = remove_last_answer(expression)
         # 将字符串解析为 AST
         expression = expression.strip() 
         tree = ast.parse(expression, mode='eval')

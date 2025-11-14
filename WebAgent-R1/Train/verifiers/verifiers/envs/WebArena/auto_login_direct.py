@@ -52,7 +52,7 @@ SLOW_MO = 0
 assert len(SITES) == len(URLS) == len(EXACT_MATCH) == len(KEYWORDS)
 
 def is_expired(
-    storage_state: Path, url: str, keyword: str, url_exact: bool = True
+        storage_state: Path, url: str, keyword: str, url_exact: bool = True
 ) -> bool:
     """Test whether the cookie is expired"""
     if not storage_state.exists():
@@ -80,7 +80,7 @@ def is_expired(
             return url not in d_url
 
 
-def renew_comb(comb: list[str], auth_folder: str = "./.auth") -> None:
+def renew_comb(comb: list[str], auth_folder: str = "./.auth"):
     context_manager = sync_playwright()
     playwright = context_manager.__enter__()
     browser = playwright.chromium.launch(headless=HEADLESS)
@@ -136,7 +136,7 @@ def renew_comb(comb: list[str], auth_folder: str = "./.auth") -> None:
 
     context.storage_state(path=f"{auth_folder}/{'.'.join(comb)}_state.json")
 
-    context_manager.__exit__()
+    return page
 
 
 def get_site_comb_from_filepath(file_path: str) -> list[str]:
@@ -151,7 +151,7 @@ def main(auth_folder: str = "./.auth") -> None:
         for pair in pairs:
             # Auth doesn't work on this pair as they share the same cookie
             if "reddit" in pair and (
-                "shopping" in pair or "shopping_admin" in pair
+                    "shopping" in pair or "shopping_admin" in pair
             ):
                 continue
             executor.submit(
@@ -160,8 +160,8 @@ def main(auth_folder: str = "./.auth") -> None:
 
         for site in SITES:
             executor.submit(renew_comb, [site], auth_folder=auth_folder)
-    
-    # parallel checking if the cookies are expired  
+
+    # parallel checking if the cookies are expired
     futures = []
     cookie_files = list(glob.glob(f"{auth_folder}/*.json"))
     with ThreadPoolExecutor(max_workers=8) as executor:
@@ -175,12 +175,20 @@ def main(auth_folder: str = "./.auth") -> None:
                     is_expired, Path(c_file), url, keyword, match
                 )
                 futures.append(future)
-    
+
     print(f'cookie_files: {cookie_files}')
 
     for i, future in enumerate(futures):
         # print(f'{cookie_files[i]} - future.result(): {future.result()}')
         assert not future.result(), f"Cookie {cookie_files[i]} expired."
+
+
+def auto_login_direct(site_list, auth_folder):
+    if not site_list:
+        main()
+    else:
+        page = renew_comb(site_list, auth_folder)
+        return page
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

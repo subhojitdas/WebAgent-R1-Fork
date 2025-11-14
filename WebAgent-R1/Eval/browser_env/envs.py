@@ -136,7 +136,7 @@ class ScriptBrowserEnv(Env[dict[str, Observation], Action]):
         )
 
     @beartype
-    def setup(self, config_file: Path | None = None) -> None:
+    def setup(self, config_file = None) -> None:
         self.context_manager = sync_playwright()
         self.playwright = self.context_manager.__enter__()
         self.browser = self.playwright.chromium.launch(
@@ -144,8 +144,7 @@ class ScriptBrowserEnv(Env[dict[str, Observation], Action]):
         )
 
         if config_file:
-            with open(config_file, "r") as f:
-                instance_config = json.load(f)
+            instance_config = config_file
         else:
             instance_config = {}
 
@@ -239,12 +238,10 @@ class ScriptBrowserEnv(Env[dict[str, Observation], Action]):
         if self.reset_finished:
             self.context_manager.__exit__()
 
-        if options is not None and "config_file" in options:
-            config_file = Path(options["config_file"])
-            if config_file.exists():
-                self.setup(config_file=config_file)
-            else:
-                raise ValueError(f"Config file {config_file} does not exist.")
+        if options is not None and "config_obj" in options:
+            # config_file = Path(options["config_file"])
+            self.setup(config_file=options['config_obj'])
+
         else:
             self.setup()
         self.reset_finished = True
