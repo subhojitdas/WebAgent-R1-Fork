@@ -1,15 +1,9 @@
 # script.py
-import os
-from accelerate import Accelerator
 
 import verifiers as vf
-from verifiers.tools import calculator
-from verifiers.prompts import CALCULATOR_FEW_SHOT
-from verifiers.trainers import GRPOEnvTrainer
-from verifiers.envs import ToolEnv
-from verifiers.utils import get_default_grpo_config
 from verifiers.envs.webarena_env import WebArenaEnv
-
+from verifiers.trainers import GRPOEnvTrainer
+from verifiers.utils import get_default_grpo_config
 
 model_name = "Qwen/Qwen2.5-3B-Instruct"
 
@@ -30,7 +24,7 @@ rubric = vf_env.get_rubric()
 
 training_args = get_default_grpo_config(
     run_name=f"{TASK}_GRPO/Standard/" + model_name.split("/")[-1].lower(),
-    num_gpus=3
+    num_gpus=8
 )
 
 trainer = GRPOEnvTrainer(

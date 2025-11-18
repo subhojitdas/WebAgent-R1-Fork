@@ -81,6 +81,8 @@ def preprocess_dataset(dataset_name: str = "gsm8k",
             "start_url": remap_start_url(x["sites"][0], x["start_url"]),
         })
 
+        dataset = dataset.filter(lambda x: x["sites"][0] == "shopping_admin")
+
         return dataset
     
     elif dataset_name == "gsm8k":

@@ -200,7 +200,7 @@ class GRPOEnvTrainer(GRPOTrainer):
                 # print(f'\nprompt_completion_ids shape: {prompt_completion_ids.shape}')
                 # print(f'\nattention_mask shape: {attention_mask.shape}')
                 # print(f'\nlogits_to_keep: {logits_to_keep}')
-                old_per_token_logps = self._get_per_token_logps(
+                old_per_token_logps, _ = self._get_per_token_logps_and_entropies(
                     self.model, prompt_completion_ids, attention_mask, logits_to_keep
                 )
             else:
@@ -210,12 +210,12 @@ class GRPOEnvTrainer(GRPOTrainer):
             if self.beta == 0.0:
                 ref_per_token_logps = None
             elif self.ref_model is not None:
-                ref_per_token_logps = self._get_per_token_logps(
+                ref_per_token_logps, _ = self._get_per_token_logps_and_entropies(
                     self.ref_model, prompt_completion_ids, attention_mask, logits_to_keep
                 )
             else:
                 with self.accelerator.unwrap_model(self.model).disable_adapter():
-                    ref_per_token_logps = self._get_per_token_logps(
+                    ref_per_token_logps, _ = self._get_per_token_logps_and_entropies(
                         self.model, prompt_completion_ids, attention_mask, logits_to_keep
                     )
 

@@ -207,11 +207,12 @@ class StringEvaluator(Evaluator):
     def __call__(
         self,
         trajectory: Trajectory,
-        config_file: Path | str,
+        config_file,
         page: Page | PseudoPage | None = None
     ) -> float:
-        with open(config_file, "r") as f:
-            configs = json.load(f)
+        # with open(config_file, "r") as f:
+        #     configs = json.load(f)
+        configs = config_file
 
         last_action = self.get_last_action(trajectory)
         pred = self.clean_answer(last_action["answer"])
@@ -288,12 +289,12 @@ class StringSoftEvaluator(Evaluator):
     def __call__(
         self,
         trajectory: Trajectory,
-        config_file: Path | str,
+        config_file,
         page: Page | PseudoPage | None = None
     ) -> float:
-        with open(config_file, "r") as f:
-            configs = json.load(f)
-
+        # with open(config_file, "r") as f:
+        #     configs = json.load(f)
+        configs = config_file
         last_action = self.get_last_action(trajectory)
         pred = last_action["answer"]
         ref = configs["eval"]["reference_answers"]
@@ -310,11 +311,12 @@ class URLExactEvaluator(Evaluator):
     def __call__(
         self,
         trajectory: Trajectory,
-        config_file: Path | str,
+        config_file,
         page: Page | PseudoPage
     ) -> float:
-        with open(config_file, "r") as f:
-            configs = json.load(f)
+        # with open(config_file, "r") as f:
+        #     configs = json.load(f)
+        configs = config_file
 
         def clean_url(url: str) -> str:
             url = str(url)
@@ -356,17 +358,23 @@ class HTMLContentExactEvaluator(Evaluator):
     def __call__(
         self,
         trajectory: Trajectory,
-        config_file: Path | str,
+        config_file,
         page: Page | PseudoPage
     ) -> float:
-        with open(config_file, "r") as f:
-            configs = json.load(f)
+        # with open(config_file, "r") as f:
+        #     configs = json.load(f)
+        configs = config_file
 
         targets = configs["eval"]["program_html"]
-
+        base_host = "http://172.31.30.90"
         score = 1.0
         for target in targets:
             target_url: str = target["url"]  # which url to check
+            if "http://localhost" in target_url:
+                target_url = target_url.replace("http://localhost", base_host)
+            if ":8083" in target_url:
+                target_url = target_url.replace(":8083", ":7780")
+
             if target_url.startswith("func"):
                 func = target_url.split("func:")[1]
                 func = func.replace("__last_url__", page.url)
@@ -499,11 +507,12 @@ class PageImageEvaluator(Evaluator):
     def __call__(
         self,
         trajectory: Trajectory,
-        config_file: Path | str,
+        config_file,
         page: Page | PseudoPage | None = None
     ) -> float:
-        with open(config_file, "r") as f:
-            configs = json.load(f)
+        # with open(config_file, "r") as f:
+        #     configs = json.load(f)
+        configs = config_file
 
         for query in configs["eval"]["page_image_query"]:
             locator: str = query["eval_image_class"]
@@ -631,13 +640,17 @@ class EvaluatorComb:
 
 @beartype
 def evaluator_router(
-    config_file: Path | str, captioning_fn=None
+        config_file: Path | str, captioning_fn=None, eval_types=None
 ) -> EvaluatorComb:
     """Router to get the evaluator class"""
-    with open(config_file, "r") as f:
-        configs = json.load(f)
 
-    eval_types = configs["eval"]["eval_types"]
+    if eval_types is None:
+        with open(config_file, "r") as f:
+            configs = json.load(f)
+        eval_types = configs["eval"]["eval_types"]
+    else:
+        eval_types = eval_types
+
     evaluators: list[Evaluator | EvaluatorPartial] = []
     for eval_type in eval_types:
         match eval_type:

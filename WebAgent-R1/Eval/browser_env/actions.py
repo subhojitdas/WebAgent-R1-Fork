@@ -1921,8 +1921,9 @@ def create_webrl_id_based_action(action_str: str) -> Action:
         return ''
 
     def remove_last_answer(expression):
-        clean = expression.replace("</answer>", "")
-        return clean
+        # clean = expression.replace("</answer>", "")
+        res = expression.split("</answer>")
+        return res[0].strip()
 
     def parse_function_call(expression):
         expression = remove_comments(expression)

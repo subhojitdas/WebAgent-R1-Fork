@@ -100,7 +100,7 @@ def apply_webrl_format(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     formatted_msg = ''
     for idx, msg in enumerate(messages):
         if idx == 0:
-            print("========MESSAGE: ", msg)
+            # print("========MESSAGE: ", msg)
             assert msg['role'] == 'system'
             # intent, obs = msg['content'].split('Round 0')
             # intent, obs = intent.strip(), obs.strip()
@@ -248,7 +248,7 @@ class WebArenaEnv(MultiStepEnv):
         return None
     
     def exact_answer_reward_func(self, prompts, completions, answer, **kwargs) -> List[float]:
-        """Reward function that checks if the final answer matches the expected answer."""
+        """Reward function that checksgen if the final answer matches the expected answer."""
 
         # print(f'\n>>> completions: {completions}')
         # print(f'\n>>> answer: {answer}')
@@ -275,6 +275,7 @@ class WebArenaEnv(MultiStepEnv):
         config_obj = prompt
 
         eval_types = config_obj["eval"]["eval_types"]
+        print(f"Eval types: {eval_types}")
         evaluator = evaluator_router(config_file="", eval_types=eval_types)
 
         if is_think_format:
@@ -300,16 +301,14 @@ class WebArenaEnv(MultiStepEnv):
         # last_observation = self.env._get_obs(context_id)["text"]
 
         score = evaluator(
-            trajectory=[],
-            config_file="",
-            exit_message=exit_message,
-            config_obj=config_obj, 
-            page=self.env._get_page(context_id)
-        )  
-
+            trajectory=completion,
+            config_file=config_obj,
+            # exit_message=exit_message,
+            # config_obj=config_obj,
+            page=self.env.page
+        )
 
         return score
-
 
     def _get_step_count(self, messages: List[Dict[str, str]]) -> int:
         """Count the number of tool uses in the message history, excluding few-shot examples."""
@@ -981,6 +980,8 @@ class WebArenaEnv(MultiStepEnv):
         # main loop
         idx = 0
         while not all_completed:
+            if idx > 2:
+                break
 
             states = self.step_webrl(states, llm, custom_sp, tokenizer, task_configs)  
 
