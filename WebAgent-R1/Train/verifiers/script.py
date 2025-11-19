@@ -5,7 +5,7 @@ from verifiers.envs.webarena_env import WebArenaEnv
 from verifiers.trainers import GRPOEnvTrainer
 from verifiers.utils import get_default_grpo_config
 
-model_name = "Qwen/Qwen2.5-3B-Instruct"
+model_name = "Qwen/Qwen2.5-1.5B-Instruct" # "Qwen/Qwen2.5-3B-Instruct"
 
 model, tokenizer = vf.get_model_and_tokenizer(model_name)
 

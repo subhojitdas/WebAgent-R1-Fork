@@ -155,7 +155,9 @@ class StringEvaluator(Evaluator):
 
     @staticmethod
     @beartype
-    def exact_match(ref: str, pred: Union[str, int]) -> float:
+    def exact_match(ref: str | None, pred: Union[str, int] | None) -> float:
+        if ref == None or pred == None:
+            return float(0.0)
         if isinstance(pred, int):
             pred = str(pred)
         return float(
@@ -215,7 +217,8 @@ class StringEvaluator(Evaluator):
         configs = config_file
 
         last_action = self.get_last_action(trajectory)
-        pred = self.clean_answer(last_action["answer"])
+        print("last action:", last_action)
+        pred = self.clean_answer(last_action["content"])
 
         score = 1.0
         for approach, value in configs["eval"]["reference_answers"].items():
@@ -274,6 +277,7 @@ class StringEvaluator(Evaluator):
                                 pred=pred,
                             )
                     else:
+                        print("StringEvaluator.fuzzy match", value)
                         assert isinstance(value, list)
                         reference = ', '.join(value)
                         score *= self.fuzzy_match(

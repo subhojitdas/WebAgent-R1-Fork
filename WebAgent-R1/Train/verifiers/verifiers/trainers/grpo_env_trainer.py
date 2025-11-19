@@ -329,6 +329,10 @@ class GRPOEnvTrainer(GRPOTrainer):
                     df = pd.DataFrame(table)
                     wandb.log({"completions": wandb.Table(dataframe=df)}) # type: ignore
 
+        local_items = prompt_ids.shape[0]
+        local_tensor = torch.tensor([local_items], device=self.accelerator.device)
+        global_items = self.accelerator.gather(local_tensor).sum().item()
+
         return {
             "prompt_ids": prompt_ids,
             "prompt_mask": prompt_mask,
@@ -337,4 +341,5 @@ class GRPOEnvTrainer(GRPOTrainer):
             "old_per_token_logps": old_per_token_logps,
             "ref_per_token_logps": ref_per_token_logps,
             "advantages": advantages,
+            "num_items_in_batch": [global_items],
         }
