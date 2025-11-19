@@ -130,3 +130,5 @@ libgbm1\
 libpango-1.0-0\
 libasound2
 ```
+
+With QWen2.5-3B-Instruct , it did not work in g5.48xlarge machine
