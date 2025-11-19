@@ -410,6 +410,23 @@ class WebArenaEnv(MultiStepEnv):
 
         return next_msg, obs
 
+    def _clip_message(self, message_list, tokenizer):
+        total_token_count = 0
+        concatenated_msg = ""
+        for msg in message_list:
+            msg_content = msg['content']
+            concatenated_msg += msg_content
+            encoded = tokenizer(
+                msg_content,
+                return_tensors=None,
+                add_special_tokens=False
+            )
+            total_token_count += len(encoded["input_ids"])
+        if total_token_count < 30000:
+            return message_list
+        else:
+            return [{'role': 'user', 'content': concatenated_msg[:30000]}]
+
     def step_webrl(self,
             states: List[Dict[str, Any]],
             llm: LLM,
@@ -436,6 +453,8 @@ class WebArenaEnv(MultiStepEnv):
         # print(f'\n>>> messages_to_step: {json.dumps(messages_to_step, indent=4)}') # debug purpose
 
         messages_to_step = [apply_webrl_format(msg) for msg in messages_to_step]
+
+        messages_to_step = [self._clip_message(msg, tokenizer) for msg in messages_to_step]
 
         # print(f'\n>>> messages_to_step (webrl format): {json.dumps(messages_to_step, indent=4)}') # debug purpose
         
@@ -672,27 +691,27 @@ class WebArenaEnv(MultiStepEnv):
                 "reward": 0.0,
                 "n_steps": 0
             }
+            if idx == 0:
+                if state["storage_state"]:
+                    cookie_file_name = os.path.basename(state["storage_state"])
+                    comb = get_site_comb_from_filepath(cookie_file_name)
+                    temp_dir = tempfile.mkdtemp()
 
-            if state["storage_state"]:
-                cookie_file_name = os.path.basename(state["storage_state"])
-                comb = get_site_comb_from_filepath(cookie_file_name)
-                temp_dir = tempfile.mkdtemp()
+                    subprocess.run(
+                        [
+                            "python",
+                            # "auto_login.py",
+                            "./verifiers/envs/WebArena/auto_login.py",
+                            "--auth_folder",
+                            temp_dir,
+                            "--site_list",
+                            *comb,
+                        ]
+                    )
 
-                subprocess.run(
-                    [
-                        "python",
-                        # "auto_login.py",
-                        "./verifiers/envs/WebArena/auto_login.py",
-                        "--auth_folder",
-                        temp_dir,
-                        "--site_list",
-                        *comb,
-                    ]
-                )
+                    # page = auto_login_direct(*comb, temp_dir)
 
-                # page = auto_login_direct(*comb, temp_dir)
-
-                state["storage_state"] = f"{temp_dir}/{cookie_file_name}"
+                    state["storage_state"] = f"{temp_dir}/{cookie_file_name}"
 
             task["storage_state"] = state["storage_state"]
             if not is_reset:
@@ -740,7 +759,7 @@ class WebArenaEnv(MultiStepEnv):
         # main loop
         idx = 0
         while not all_completed:
-            if idx > 2:
+            if idx > 5:
                 break
 
             states = self.step_webrl(states, llm, custom_sp, tokenizer, task_configs)  
