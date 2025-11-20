@@ -2,6 +2,9 @@
 Browser Env action space.
 Inspited by Farama-Foundation/miniwob-plusplus
 """
+# import os
+# os.environ["DATASET"] = "a"
+
 import ast
 import random
 import re
@@ -2011,3 +2014,9 @@ def create_webrl_id_based_action(action_str: str) -> Action:
             return create_stop_action(answer)
 
     raise ActionParsingError(f"Invalid action {action_str}")
+
+
+if __name__ == '__main__':
+    res = "<think> The \"Reports\" section is not directly visible. I will navigate to the \"System\" section and then find the \"Reports\" section there. </think> <answer> go_forward() </answer>"
+    a = create_webrl_id_based_action(res)
+    print(a)

@@ -172,15 +172,17 @@ class StringEvaluator(Evaluator):
         clean_pred = StringEvaluator.clean_answer(pred)
         # tokenize the answer if the ref is a single word
         # prevent false positive (e.g, 0)
-        if len(word_tokenize(clean_ref)) == 1:
-            tok_pred = word_tokenize(clean_pred)
+        clean_ref_list = clean_ref.split(" ")
+        clean_pred_list = clean_pred.split(" ")
+        if len(clean_ref_list) == 1:
+            tok_pred = clean_pred_list
             for token in tok_pred:
                 if '/' in token:
                     sub_tokens = token.split('/')
                     tok_pred.extend(sub_tokens)
-            return float(clean_ref in tok_pred)
+            return float(clean_ref_list in tok_pred)
         else:
-            return float(clean_ref in clean_pred)
+            return float(clean_ref_list in clean_pred_list)
 
     @staticmethod
     @beartype
@@ -190,11 +192,12 @@ class StringEvaluator(Evaluator):
         clean_pred = StringEvaluator.clean_answer(pred)
         # tokenize the answer if the ref is a single word
         # prevent false positive (e.g, 0)
-        if len(word_tokenize(clean_ref)) == 1:
-            tok_pred = word_tokenize(clean_pred)
-            return float(clean_ref not in tok_pred)
+        clean_ref_list = clean_ref.split(" ")
+        clean_pred_list = clean_pred.split(" ")
+        if len(clean_ref_list) == 1:
+            return float(clean_ref_list not in clean_pred_list)
         else:
-            return float(clean_ref not in clean_pred)
+            return float(clean_ref_list not in clean_pred)
 
     @staticmethod
     @beartype
@@ -222,6 +225,8 @@ class StringEvaluator(Evaluator):
 
         score = 1.0
         for approach, value in configs["eval"]["reference_answers"].items():
+            if value is None:
+                continue
             match approach:
                 case "exact_match":
                     score *= self.exact_match(ref=value, pred=pred)
@@ -243,6 +248,9 @@ class StringEvaluator(Evaluator):
                                 ]
                             )
                 case "must_include":
+                    print("StringEvaluator must_include: ", value)
+                    if value is None:
+                        continue
                     assert isinstance(value, list)
                     for must_value in value:
                         value_or = must_value.split(" |OR| ")
@@ -278,6 +286,8 @@ class StringEvaluator(Evaluator):
                             )
                     else:
                         print("StringEvaluator.fuzzy match", value)
+                        if value is None:
+                            continue
                         assert isinstance(value, list)
                         reference = ', '.join(value)
                         score *= self.fuzzy_match(

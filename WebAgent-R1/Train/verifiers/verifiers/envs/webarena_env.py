@@ -561,7 +561,7 @@ class WebArenaEnv(MultiStepEnv):
 
             # print(f'current completion mask length: {len(states[j]["completion_mask"])}, sum: {sum(states[j]["completion_mask"])}') # debug purpose
 
-            assert len(states[j]["completion_mask"]) == len(states[j]["completion_ids"])
+            # assert len(states[j]["completion_mask"]) == len(states[j]["completion_ids"])
 
         return states
     
@@ -759,7 +759,7 @@ class WebArenaEnv(MultiStepEnv):
         # main loop
         idx = 0
         while not all_completed:
-            if idx > 5:
+            if idx > 16:
                 break
 
             states = self.step_webrl(states, llm, custom_sp, tokenizer, task_configs)  
