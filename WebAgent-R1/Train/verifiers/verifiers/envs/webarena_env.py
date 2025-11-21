@@ -759,7 +759,7 @@ class WebArenaEnv(MultiStepEnv):
         # main loop
         idx = 0
         while not all_completed:
-            if idx > 5:
+            if idx > 15:
                 break
 
             states = self.step_webrl(states, llm, custom_sp, tokenizer, task_configs)  

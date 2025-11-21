@@ -1925,6 +1925,9 @@ def create_webrl_id_based_action(action_str: str) -> Action:
 
     def remove_last_answer(expression):
         # clean = expression.replace("</answer>", "")
+        if "<answer>" in expression and "</answer>" in expression:
+            answers = expression.split("<answer>")
+            expression = answers[1].strip()
         res = expression.split("</answer>")
         return res[0].strip()
 

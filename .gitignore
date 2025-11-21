@@ -186,3 +186,4 @@ cython_debug/
 .pypirc
 .idea
 WebAgent-R1/Train/verifiers/debug_info/
+Miniconda3-latest-Linux-x86_64.sh

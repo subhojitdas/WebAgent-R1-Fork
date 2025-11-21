@@ -333,6 +333,11 @@ class GRPOEnvTrainer(GRPOTrainer):
         local_tensor = torch.tensor([local_items], device=self.accelerator.device)
         global_items = self.accelerator.gather(local_tensor).sum().item()
 
+        print("prompt_ids:", prompt_ids.shape)
+        print("completion_ids:", completion_ids.shape)
+        print("prompt_mask:", prompt_mask.shape)
+        print("completion_mask:", completion_mask.shape)
+
         return {
             "prompt_ids": prompt_ids,
             "prompt_mask": prompt_mask,
