@@ -2012,6 +2012,10 @@ def create_webrl_id_based_action(action_str: str) -> Action:
                     element_id = action["kwargs"]["element"]
                     text = action["kwargs"]["argument"]
                     return create_search_action(text=text, element_id=element_id)
+        case "go_forward":
+            return create_go_forward_action()
+        case "go_backward":
+            return create_go_back_action()
         case "exit": # stop answer
             answer = action['kwargs']['message']
             return create_stop_action(answer)
@@ -2020,6 +2024,6 @@ def create_webrl_id_based_action(action_str: str) -> Action:
 
 
 if __name__ == '__main__':
-    res = "<think> The \"Reports\" section is not directly visible. I will navigate to the \"System\" section and then find the \"Reports\" section there. </think> <answer> go_forward() </answer>"
+    res = "The webpage is still loading. I need to wait for a moment. <answer> do(action=\"Wait\") </answer>"
     a = create_webrl_id_based_action(res)
     print(a)

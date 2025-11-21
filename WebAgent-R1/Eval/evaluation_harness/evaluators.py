@@ -167,26 +167,52 @@ class StringEvaluator(Evaluator):
 
     @staticmethod
     @beartype
-    def must_include(ref: str, pred: str) -> float:
+    def normalized_overlap(ref, pred):
+        ref_set = set(ref)
+        pred_set = set(pred)
+
+        intersection = len(ref_set & pred_set)
+        union = len(ref_set | pred_set)
+
+        if union == 0:
+            return 0.0
+        return intersection / union
+
+    @staticmethod
+    @beartype
+    def penalized_overlap_score(ref, pred, pos_reward=1.0, neg_reward=1.0):
+        pred_set = set(pred)
+        total = 0.0
+        for r in ref:
+            if r in pred_set:
+                total -= neg_reward
+            else:
+                total += pos_reward
+        if len(ref) == 0:
+            return 0.0
+        return total / len(ref)
+
+    @beartype
+    def must_include(self, ref: str, pred: str) -> float:
         clean_ref = StringEvaluator.clean_answer(ref)
         clean_pred = StringEvaluator.clean_answer(pred)
         # tokenize the answer if the ref is a single word
         # prevent false positive (e.g, 0)
         clean_ref_list = clean_ref.split(" ")
         clean_pred_list = clean_pred.split(" ")
+        print("clean_ref_list: ", clean_pred_list)
+        print("clean_pred_list: ", clean_pred_list)
         if len(clean_ref_list) == 1:
             tok_pred = clean_pred_list
             for token in tok_pred:
                 if '/' in token:
                     sub_tokens = token.split('/')
                     tok_pred.extend(sub_tokens)
-            return float(clean_ref_list in tok_pred)
+            return float(clean_ref_list[0] in tok_pred)
         else:
-            return float(clean_ref_list in clean_pred_list)
+            return self.normalized_overlap(clean_ref_list, clean_pred_list)
 
-    @staticmethod
-    @beartype
-    def must_exclude(ref: str, pred: str) -> float:
+    def must_exclude(self, ref: str, pred: str) -> float:
         """Returns 1 if pred is not in ref, and 0 otherwise"""
         clean_ref = StringEvaluator.clean_answer(ref)
         clean_pred = StringEvaluator.clean_answer(pred)
@@ -195,9 +221,9 @@ class StringEvaluator(Evaluator):
         clean_ref_list = clean_ref.split(" ")
         clean_pred_list = clean_pred.split(" ")
         if len(clean_ref_list) == 1:
-            return float(clean_ref_list not in clean_pred_list)
+            return float(clean_ref_list[0] not in clean_pred_list)
         else:
-            return float(clean_ref_list not in clean_pred)
+            return self.penalized_overlap_score(clean_ref_list, clean_pred_list)
 
     @staticmethod
     @beartype
@@ -310,7 +336,10 @@ class StringSoftEvaluator(Evaluator):
         #     configs = json.load(f)
         configs = config_file
         last_action = self.get_last_action(trajectory)
-        pred = last_action["answer"]
+        if "answer" in last_action:
+            pred = last_action["answer"]
+        elif "content" in last_action:
+            pred = last_action["content"]
         ref = configs["eval"]["reference_answers"]
         # rouge
         m = evaluate.load("rouge")
@@ -335,7 +364,8 @@ class URLExactEvaluator(Evaluator):
         def clean_url(url: str) -> str:
             url = str(url)
             # Replace http://localhost with http://127.0.0.1 to keep things consistent across evals.
-            url = url.replace("localhost", "127.0.0.1")
+            url = url.replace("localhost", "172.31.68.223")
+            url = url.replace(":8083", ":7780")
             if url.endswith("/"):
                 url = url[:-1]
             return url
@@ -669,7 +699,7 @@ def evaluator_router(
     for eval_type in eval_types:
         match eval_type:
             case "string_match":
-                evaluators.append(StringEvaluator())
+                evaluators.append(StringSoftEvaluator())
             case "url_match":
                 evaluators.append(URLExactEvaluator())
             case "program_html":
