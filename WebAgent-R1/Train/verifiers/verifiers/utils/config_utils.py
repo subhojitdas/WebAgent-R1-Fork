@@ -9,7 +9,7 @@ def get_default_grpo_config(run_name: str,
                             reward_weights: Optional[List[float]] = None) -> GRPOConfig:
 
     return GRPOConfig(
-        output_dir=f"/tmp/instance_storage/browser_r1/outputs/webrl_llama3.1-8b/{run_name}",
+        output_dir=f"/tmp/instance_storage/browser_r1/outputs/qwen7b/{run_name}",
         run_name=run_name,
         learning_rate=1e-6,
         lr_scheduler_type="constant",

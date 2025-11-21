@@ -77,6 +77,10 @@ class GRPOEnvTrainer(GRPOTrainer):
         device = self.accelerator.device
         # prompts = [x["prompt"] for x in inputs] # type: ignore
         prompts = inputs # for WebArena
+        print(f"Device: {device}")
+        print(f"Global Rank: {self.accelerator.process_index} , Local Rank: {self.accelerator.local_process_index}")
+        for inp in inputs:
+            print(f"TaskId: {inp['task_id']} , Intent: {inp['intent']}")
 
         prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs] # type: ignore
 

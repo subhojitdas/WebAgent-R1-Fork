@@ -1907,7 +1907,7 @@ def create_id_based_action(action_str: str) -> Action:
 def create_webrl_id_based_action(action_str: str) -> Action:
     """Main function to return individual webrl id based action"""
     import ast
-    print("Inside create_webrl_id_based_action")
+    print(f"Inside create_webrl_id_based_action: {action_str}")
     def remove_comments(code):
         # 按行分割代码
         for key in ['exit(','do(','go_backward(']:

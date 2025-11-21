@@ -99,18 +99,18 @@ def apply_webrl_format(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Apply WebRL format to the messages."""
     formatted_msg = ''
     for idx, msg in enumerate(messages):
-        if idx == 0:
-            # print("========MESSAGE: ", msg)
-            assert msg['role'] == 'system'
-            # intent, obs = msg['content'].split('Round 0')
-            # intent, obs = intent.strip(), obs.strip()
-            # formatted_msg += f'Task Instruction: {intent}\n\nRound 0\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
-            # if obs != '** Simplified html **':
-            #     assert len(messages) == 1
-            #     formatted_msg += obs + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
-            # else:
-            #     formatted_msg += intent + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
-            formatted_msg = msg['content']
+        if idx == 1:
+            assert msg['role'] == 'user'
+            intent, obs = msg['content'].split('Round 0')
+            intent, obs = intent.strip(), obs.strip()
+            formatted_msg += f'Task Instruction: {intent}\n\nRound 0\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
+            if obs != '** Simplified html **':
+                assert len(messages) == 2
+                formatted_msg += obs + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
+            else:
+                formatted_msg += intent + '\n\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n'
+        elif msg['role'] == 'system':
+            formatted_msg += msg['content']
         elif msg['role'] == 'assistant':
             formatted_msg += msg["content"].strip() + f'\n\nRound {int(idx/2)+1}\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n'
         elif msg['role'] == 'user':
@@ -458,7 +458,8 @@ class WebArenaEnv(MultiStepEnv):
 
         # print(f'\n>>> messages_to_step (webrl format): {json.dumps(messages_to_step, indent=4)}') # debug purpose
         
-
+        print("#######   MESSAGES_TO_STEP  #######\n", messages_to_step)
+        print("#######   MESSAGES_ENDS  #######\n")
         llm_responses = llm.chat(messages_to_step, sampling_params=sampling_params, use_tqdm=False) # type: ignore
 
         dummy_observation_ids = tokenizer.encode(self.dummy_observation)
@@ -592,7 +593,7 @@ class WebArenaEnv(MultiStepEnv):
         # print(f'\n>>> messages_to_step: {json.dumps(messages_to_step, indent=4)}') # debug purpose
 
         # print(f'\n>>> messages_to_step (webrl format): {json.dumps(messages_to_step, indent=4)}') # debug purpose
-        
+        print("##### MESSAGES_TO_STEP: #######\n", messages_to_step)
         llm_responses = llm.chat(messages_to_step, sampling_params=sampling_params, use_tqdm=False) # type: ignore
 
         for i, j in enumerate(live_indices):

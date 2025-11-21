@@ -167,19 +167,6 @@ class StringEvaluator(Evaluator):
 
     @staticmethod
     @beartype
-    def normalized_overlap(ref, pred):
-        ref_set = set(ref)
-        pred_set = set(pred)
-
-        intersection = len(ref_set & pred_set)
-        union = len(ref_set | pred_set)
-
-        if union == 0:
-            return 0.0
-        return intersection / union
-
-    @staticmethod
-    @beartype
     def penalized_overlap_score(ref, pred, pos_reward=1.0, neg_reward=1.0):
         pred_set = set(pred)
         total = 0.0
@@ -192,8 +179,19 @@ class StringEvaluator(Evaluator):
             return 0.0
         return total / len(ref)
 
+    @staticmethod
     @beartype
-    def must_include(self, ref: str, pred: str) -> float:
+    def must_include(ref: str, pred: str) -> float:
+        def normalized_overlap(ref, pred):
+            ref_set = set(ref)
+            pred_set = set(pred)
+
+            intersection = len(ref_set & pred_set)
+            union = len(ref_set | pred_set)
+
+            if union == 0:
+                return 0.0
+            return intersection / union
         clean_ref = StringEvaluator.clean_answer(ref)
         clean_pred = StringEvaluator.clean_answer(pred)
         # tokenize the answer if the ref is a single word
@@ -210,9 +208,22 @@ class StringEvaluator(Evaluator):
                     tok_pred.extend(sub_tokens)
             return float(clean_ref_list[0] in tok_pred)
         else:
-            return self.normalized_overlap(clean_ref_list, clean_pred_list)
+            return normalized_overlap(clean_ref_list, clean_pred_list)
 
-    def must_exclude(self, ref: str, pred: str) -> float:
+    @staticmethod
+    @beartype
+    def must_exclude(ref: str, pred: str) -> float:
+        def penalized_overlap_score(ref, pred, pos_reward=1.0, neg_reward=1.0):
+            pred_set = set(pred)
+            total = 0.0
+            for r in ref:
+                if r in pred_set:
+                    total -= neg_reward
+                else:
+                    total += pos_reward
+            if len(ref) == 0:
+                return 0.0
+            return total / len(ref)
         """Returns 1 if pred is not in ref, and 0 otherwise"""
         clean_ref = StringEvaluator.clean_answer(ref)
         clean_pred = StringEvaluator.clean_answer(pred)
@@ -223,7 +234,7 @@ class StringEvaluator(Evaluator):
         if len(clean_ref_list) == 1:
             return float(clean_ref_list[0] not in clean_pred_list)
         else:
-            return self.penalized_overlap_score(clean_ref_list, clean_pred_list)
+            return penalized_overlap_score(clean_ref_list, clean_pred_list)
 
     @staticmethod
     @beartype
@@ -342,8 +353,20 @@ class StringSoftEvaluator(Evaluator):
             pred = last_action["content"]
         ref = configs["eval"]["reference_answers"]
         # rouge
+        pred_str = ""
+        for k, v in ref.items():
+            if v:
+                pred_str += " ".join(v)
+            pred_str += "\n"
+
         m = evaluate.load("rouge")
-        rouge = m.compute(predictions=[pred], references=[ref])
+        print("#### Inside StringSoftEvaluator #####")
+        print("## REF: ", ref)
+        print("## PRED: ", pred)
+        print("## PRED STR: ", pred_str)
+
+        rouge = m.compute(predictions=[pred], references=[pred_str])
+        print("## ROUGE: ", rouge)
         return float(rouge["rouge1"])
 
 
@@ -374,6 +397,10 @@ class URLExactEvaluator(Evaluator):
         ref_urls = configs["eval"]["reference_url"].split(" |OR| ")
         ref_urls = [clean_url(url) for url in ref_urls]
         matching_rule = configs["eval"].get("url_note", "EXACT")
+        print("#### Inside URLExactEvaluator #####")
+        print("## REF: ", ref_urls)
+        print("## PRED: ", pred)
+
         if matching_rule is None:
             matching_rule = "EXACT"
         if matching_rule == "EXACT":
@@ -534,6 +561,8 @@ class HTMLContentExactEvaluator(Evaluator):
                 raise ValueError(
                     f"Unknown required_contents: {target['required_contents'].keys()}"
                 )
+        print("#### Inside HTMLContentExactEvaluator #####")
+        print("## SCORE: ", score)
 
         return score
 
@@ -659,7 +688,8 @@ class PageImageEvaluator(Evaluator):
                                 found_exact_match = True
                                 break
                     score *= float(found_exact_match)
-
+        print("##### IN PageImageEvaluator")
+        print("##### Score: ", score)
         return score
 
 

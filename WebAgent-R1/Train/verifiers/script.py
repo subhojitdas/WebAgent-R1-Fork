@@ -13,7 +13,7 @@ TASK = 'webarena-lite'
 
 vf_env = WebArenaEnv(
     dataset=TASK,
-    max_steps=15,
+    max_steps=8,
     n_contexts=4 # n_gpu - 1
 )
 
