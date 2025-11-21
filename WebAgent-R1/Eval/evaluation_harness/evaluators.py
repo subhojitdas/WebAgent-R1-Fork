@@ -380,7 +380,7 @@ class HTMLContentExactEvaluator(Evaluator):
         configs = config_file
 
         targets = configs["eval"]["program_html"]
-        base_host = "http://172.31.30.90"
+        base_host = "http://172.31.22.75"
         score = 1.0
         for target in targets:
             target_url: str = target["url"]  # which url to check

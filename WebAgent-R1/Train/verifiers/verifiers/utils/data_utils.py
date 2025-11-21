@@ -48,7 +48,7 @@ def format_prompt(prompt: str,
     return messages
 
 def remap_start_url(site, url):
-    base_host = "172.31.30.90"
+    base_host = "172.31.22.75"
     site_port_map = {
         "gitlab": "8023",
         "shopping_admin": "7780",
